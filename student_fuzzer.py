@@ -17,6 +17,12 @@ from bug import get_initial_corpus
 ## the fuzzer tracks new behavior in the SUT
 
 class MyCoverage(cv.Coverage):
+    # this code implements my version of the 4-gram branch coverage, with two additions:
+    # (1) the final nested if checker, that helps in finding bugs hidden inside nested ifs by
+    # keeping track of the final lines of code (before the last branch) reached by the algorithm, and
+    # (2) the nested degree weights. If a doubly (or more) nested if is entered, the algorithm
+    # detects this and adds a "weight" to the path (in the form of negative numbers), to encourage
+    # the coverage to be seen as interesting
     not_offset = True
     # branch_coverage_empty = True
     program_lines = [""] + inspect.getsource(entrypoint).splitlines()
@@ -26,18 +32,22 @@ class MyCoverage(cv.Coverage):
         if 'if' in program_lines[l] or 'elif' in program_lines[l] or 'else' in program_lines[l] or 'case' in program_lines[l]:
             # append the line after control flow statement to show that that branch has been entered
             branch_start_line_numbers.append(l+1)
+    final_branch_start_line = 0
+    nesting_degree_checker = {}
+    nesting_degree_counter = -1
+    new_nesting_degree = False
 
     def __init__(self) -> None:
         """Constructor"""
         self._trace: List[cv.Location] = []
-        self.four_gram_storage = []
-        self.branch_coverage_empty = True
         self.branch_coverage = []
-        self.local_variables = {}
         self.four_gram_storage = []
         self.four_gram_counter = 0
+        self.final_nest_checker = []
+        self.final_nest_counter = 0
+        self.nesting_degree_payload = []
+        self.branch_hit = []
 
-    # TODO: Implement 4-gram branch coverage
     def traceit(self, frame: FrameType, event: str, arg: Any) -> Optional[Callable]:
         """Tracing function. To be overloaded in subclasses."""        
         if self.original_trace_function is not None:
@@ -53,17 +63,34 @@ class MyCoverage(cv.Coverage):
                 for i in range(len(MyCoverage.branch_start_line_numbers)):
                     MyCoverage.branch_start_line_numbers[i] += offset
             if function_name != '__exit__':  # avoid tracing ourselves:
-                self._trace.append((function_name, lineno))
+                # self._trace.append((function_name, lineno))
+                if lineno < MyCoverage.branch_start_line_numbers[-1]:
+                    self.final_nest_checker.append(lineno)
+                    self.final_nest_counter += 1
+                    if self.final_nest_counter == 5:
+                        self.final_nest_counter = 0
+                        self.final_nest_checker = []
+                if (lineno - 1) in MyCoverage.branch_start_line_numbers:
+                    self.branch_hit.append(lineno - 1)
+
                 if lineno in MyCoverage.branch_start_line_numbers:
                     self.four_gram_storage.append(lineno)
                     self.four_gram_counter += 1
+                    if lineno not in MyCoverage.nesting_degree_checker:
+                        MyCoverage.nesting_degree_checker[lineno] = MyCoverage.nesting_degree_counter
+                        MyCoverage.new_nesting_degree = True
+
+                    payload = MyCoverage.nesting_degree_checker[lineno]
+                    self.nesting_degree_payload.append(tuple(range(payload, payload*2, -1)))
                     if self.four_gram_counter == 4:
                         self.four_gram_counter = 0
                         self.branch_coverage.append(tuple(self.four_gram_storage))
                         self.four_gram_storage = []
 
-
-            
+            if function_name == "run_function" and MyCoverage.new_nesting_degree:
+                MyCoverage.new_nesting_degree = False
+                MyCoverage.nesting_degree_counter *= 2
+   
         return self.traceit
 
     def coverage(self):
@@ -76,8 +103,13 @@ class MyCoverage(cv.Coverage):
             self.four_gram_counter = 0
             self.four_gram_storage = []
 
-        # print(self.branch_coverage)
-        return self.branch_coverage
+        final_nested_tuple = tuple((self.final_nest_checker))
+        # cov = self.branch_coverage + [final_nested_tuple] + (self.nesting_degree_payload)
+        cov = self.branch_coverage + [final_nested_tuple]
+        if len(self.nesting_degree_payload) > 2:
+            cov += self.nesting_degree_payload[-4:]
+        # print(cov)
+        return cov
         
 
 
