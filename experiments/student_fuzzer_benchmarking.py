@@ -9,6 +9,7 @@ import traceback
 import numpy as np
 import time
 import inspect
+import sys
 
 from bug import entrypoint
 from bug import get_initial_corpus
@@ -143,9 +144,12 @@ class MyFunctionCoverageRunner(mf.FunctionRunner):
 # benchmarking run. The framework will track whether or not the bug was
 # found by your fuzzer -- no need to keep track of crashing inputs
 if __name__ == "__main__":
-    seed_inputs = get_initial_corpus()
+    # seed_inputs = get_initial_corpus()
+    seed_inputs = sys.argv[1]
+    print(seed_inputs)
     fast_schedule = gbf.AFLFastSchedule(5)
     line_runner = MyFunctionCoverageRunner(entrypoint)
 
     fast_fuzzer = gbf.CountingGreyboxFuzzer(seed_inputs, gbf.Mutator(), fast_schedule)
-    fast_fuzzer.runs(line_runner, trials=9999999999)
+    fast_fuzzer.runs(line_runner, trials=999999)
+    exit(0)

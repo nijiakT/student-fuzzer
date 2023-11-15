@@ -1,24 +1,15 @@
 # Student Fuzzer
-Template repository for CS5219
+CS5219 Assignment 2 Submission for Teo Kai Jin (A0285642X)
 
-## Setup
-Install all dependencies needed by the Fuzzing Book baseline fuzzer with:
+## Description
+Repository has a similar structure to the initial template; contains README, LICENSE, Dockerfile, requirements.txt, examples directory, bug.py, experiments directory and student_fuzzer.py
 
-```
-pip install -r requirements.txt
-```
+student_fuzzer.py contains my implementation of a fuzzer that uses four-gram branch coverage, with the addition of a final nested if checker to aid in finding bugs hiding in nested ifs.
 
-You may want to do this in a Python **virtual environment** to avoid global dependency conflicts.
+The experiments directory contains bug.py, which is the motivating example "buggy" Python program that I use to evaluate the performance of my fuzzer against the baseline fuzzer. The bug is represented by the line "exit(219)", hidden inside a nested if at the end of the program. This directory also contains the experiment.py script, which I used to complete my benchmarking. The time taken to find the bug (per successful fuzzing) is stored inside the respective csv files, as well as the mean and variance of time taken. The mean and variance are the last two values in the csv files.
+
+The experiments directory also contains the data directory, which contain the csv files I obtained by running experiment.py locally. baseline_fuzzer_benchmarking.csv contains the data for the baseline fuzzer, and student_fuzzer_benchmarking.csv contains the data for my fuzzer.
 
 ## Usage
 
-The fuzzer expects a file named `bug.py` to be *in the same directory as the fuzzer file* (`student-fuzzer.py`).
-This `bug.py` file should have two functions: an `entrypoint` that is fuzzed by the fuzzer and `get_initial_corpus` function which returns a list of initial inputs for the fuzzer.
-To execute the fuzzer on the bug in `bug.py`, just run:
-
-```
-python student_fuzzer.py
-```
-
-Several example bugs are included in the `examples` directory.
-To run the fuzzer on an example bug, copy e.g. `examples/0/bug.py` to the base directory of this repository before running the fuzzer with the command above.
+To reproduce my experimental results, open a Terminal in the experiments directory and run `python3 experiment.py`. The results will be stored in baseline_fuzzer_benchmarking.csv and student_fuzzer_benchmarking.csv in the same directory.
